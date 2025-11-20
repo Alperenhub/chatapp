@@ -105,12 +105,12 @@ function SignUpPage() {
                   className="w-full h-auto object-contain"
                 />
                 <div className="mt-6 text-center">
-                  <h3 className="text-xl font-medium text-cyan-400">Kullanmaya Başla</h3>
+                  <h3 className="text-xl font-medium text-cyan-400">Dünya'nın her yerinden bağlan</h3>
 
                   <div className="mt-4 flex justify-center gap-4">
-                    <span className="auth-badge">Bedava</span>
-                    <span className="auth-badge">Kolay Kurulum</span>
-                    <span className="auth-badge">Özel</span>
+                    <span className="auth-badge">Ücretsiz</span>
+                    <span className="auth-badge">Kolay kullanım</span>
+                    <span className="auth-badge">Güvenli</span>
                   </div>
                 </div>
               </div>

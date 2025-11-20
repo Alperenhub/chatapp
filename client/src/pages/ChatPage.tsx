@@ -1,8 +1,14 @@
+import { useAuthStore } from "../store/useAuthStore"
 
 const ChatPage = () => {
+
+  const {logout} = useAuthStore();
+
+
   return (
-    <div>
-     chatpage 
+    <div className="z-10">
+      ChatPage
+     <button onClick={logout}>logout</button> 
     </div>
   )
 }

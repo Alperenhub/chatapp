@@ -7,6 +7,7 @@ export const useAuthStore = create((set:any)=> ({
     authUser: null,
     isCheckingAuth: true,
     isSigningUp: false,
+    isLoggingIn:false,
 
     checkAuth: async () =>{
         
@@ -36,6 +37,35 @@ export const useAuthStore = create((set:any)=> ({
         } finally{
         set({isSigningUp:false})
         }
-    }
+    },
+
+
+        login: async(data:any) => {
+        set({isLoggingIn:true})
+        try {
+            const res = await axiosInstance.post("/auth/login", data);
+            set({authUser: res.data});
+
+            toast.success("Başarıyla giriş yapıldı.");
+
+        } catch (error:any) {
+
+            toast.error(error.response.data.message);
+
+        } finally{
+        set({isSigningUp:false})
+        }
+    },
+
+        logout: async() => {
+            try {
+                await axiosInstance.post("/auth/logout");
+                set({authUser: null});
+                toast.success("Çıkış yapıldı.");
+            } catch (error) {
+                toast.error("Hata! Çıkış yapılamadı.");
+                console.log("Logout error:", error);
+            }
+        }
 
 }));
