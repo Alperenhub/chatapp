@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useRef } from 'react'
 import { useChatStore } from '../store/useChatStore'
 import { useAuthStore } from '../store/useAuthStore';
 import ChatHeader from './ChatHeader';
@@ -11,10 +11,17 @@ const ChatContainer = () => {
   const {selectedUser, getMessagesByUserId, messages, isMessagesLoading} = useChatStore();
   const {authUser} = useAuthStore();
 
+  const messageEndRef = useRef<any>(null)
+
   useEffect(()=>{
     getMessagesByUserId(selectedUser._id);
   },[selectedUser, getMessagesByUserId])
 
+  useEffect(()=>{
+    if(messageEndRef.current){
+      messageEndRef.current.scrollIntoView({behavior: "smooth"});
+    }
+  },[messages])
 
   return (
     <>
@@ -37,15 +44,19 @@ const ChatContainer = () => {
                       <img src={msg.image} alt='Shared' className='rounded-lg h-48 object-cover' />
                     )}
                     {msg.text && <p className='mt-2'>{msg.text}</p>}
-                     <p className="text-xs mt-1 opacity-75 flex items-center gap-1">
+                    <p className="text-xs mt-1 opacity-75 flex items-center gap-1">
                     {new Date(msg.createdAt).toLocaleTimeString(undefined, {
                       hour: "2-digit",
                       minute: "2-digit",
+                        hour12: true,  // AM/PM için ekle
+
                     })}
                   </p>
                   </div> 
                 </div>  
               ))}
+
+              <div ref={messageEndRef}/> 
 
             </div>
                         
