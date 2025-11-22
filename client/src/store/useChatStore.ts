@@ -19,6 +19,7 @@ interface ChatStore {
 
   getAllContact: () => Promise<void>;
   getMyChartPartners: () => Promise<void>;
+  getMessagesByUserId: (userId:any) => Promise<void>;
 }
 
 export const useChatStore = create<ChatStore>((set, get) => ({
@@ -65,10 +66,23 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         const res = await axiosInstance.get("/messages/chats");
         set({ chats: res.data});
     } catch (error:any) {
-        toast.error(error.response.data.message);
+        toast.error(error?.response?.data?.message);
     }finally{
         set({isUsersLoading:false})
     }
-
   },
+
+  getMessagesByUserId: async (userId:any) =>{
+        set({isMessagesLoading: true});
+
+        try {
+          const res = await axiosInstance.get(`/messages/${userId}`);
+          set({messages: res.data})
+        } catch (error:any) {
+          toast.error(error?.response?.data?.message || "Bir şeyler ters gitti")
+        } finally{
+            set({ isMessagesLoading:false})
+        }
+  }
+
 }));
