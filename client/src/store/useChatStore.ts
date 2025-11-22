@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { axiosInstance } from "../lib/axios";
 import toast from "react-hot-toast";
+import { useAuthStore } from "./useAuthStore";
 
 // sadece gerekli tipler
 interface ChatStore {
@@ -20,6 +21,8 @@ interface ChatStore {
   getAllContact: () => Promise<void>;
   getMyChartPartners: () => Promise<void>;
   getMessagesByUserId: (userId:any) => Promise<void>;
+  sendMessage: (messageData:any) => Promise<void>;
+
 }
 
 export const useChatStore = create<ChatStore>((set, get) => ({
@@ -83,6 +86,32 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         } finally{
             set({ isMessagesLoading:false})
         }
+  },
+
+  sendMessage : async(messageData:any) => {
+    const {selectedUser, messages } = get()
+    const {authUser} = useAuthStore.getState()
+
+    const tempId = `temp-${Date.now()}`
+
+    const optimisticMessage = {
+      _id:tempId,
+      senderId: authUser?._id,
+      receiverId: selectedUser._id,
+      text: messageData.text,
+      imagae: messageData.imagae,
+      createdAt: new Date().toISOString(),
+    };
+
+    set({messages: [...messages, optimisticMessage]});
+
+    try {
+      const res = await axiosInstance.post(`/messages/send/${selectedUser._id}`, messageData)
+      set({messages: messages.concat(res.data)})
+    } catch (error:any) {
+      set({messages: messages});
+      toast.error(error?.response?.data?.message || "Bir şeyler ters gitti.");
+    }
   }
 
 }));
