@@ -1,71 +1,87 @@
-import {create} from 'zustand';
-import {axiosInstance} from "../lib/axios";
-import toast from 'react-hot-toast';
+import { create } from "zustand";
+import { axiosInstance } from "../lib/axios";
+import toast from "react-hot-toast";
+import type { AuthUser } from "../types/auth";
 
-export const useAuthStore = create((set:any)=> ({
-    
-    authUser: null,
-    isCheckingAuth: true,
-    isSigningUp: false,
-    isLoggingIn:false,
+interface AuthState {
+  authUser: AuthUser | null;
+  isCheckingAuth: boolean;
+  isSigningUp: boolean;
+  isLoggingIn: boolean;
 
-    checkAuth: async () =>{
-        
-        try {
-            const res = await axiosInstance.get("/auth/check");
-            set({authUser: res.data})
-        } catch (error) {
-            console.log("Error in authCheck:", error);
-            set({authUser:null})
-        } finally{
-            set({isCheckingAuth: false});
-        }
-    },
+  checkAuth: () => Promise<void>;
+  signup: (data: any) => Promise<void>;
+  login: (data: any) => Promise<void>;
+  logout: () => Promise<void>;
+  updateProfile: (data: Partial<AuthUser>) => void;   // <-- eklendi
+}
 
-    signup: async(data:any) => {
-        set({isSigningUp:true})
-        try {
-            const res = await axiosInstance.post("/auth/signup", data);
-            set({authUser: res.data});
-
-            toast.success("Başarıyla hesap oluşturuldu.");
-
-        } catch (error:any) {
-
-            toast.error(error.response.data.message);
-
-        } finally{
-        set({isSigningUp:false})
-        }
-    },
+export const useAuthStore = create<AuthState>((set) => ({
+  authUser: null,
+  isCheckingAuth: true,
+  isSigningUp: false,
+  isLoggingIn: false,
 
 
-        login: async(data:any) => {
-        set({isLoggingIn:true})
-        try {
-            const res = await axiosInstance.post("/auth/login", data);
-            set({authUser: res.data});
 
-            toast.success("Başarıyla giriş yapıldı.");
+  checkAuth: async () => {
+    try {
+      const res = await axiosInstance.get("/auth/check");
+      set({ authUser: res.data });
+    } catch (error) {
+      console.log("Error in authCheck:", error);
+      set({ authUser: null });
+    } finally {
+      set({ isCheckingAuth: false });
+    }
+  },
 
-        } catch (error:any) {
+  signup: async (data) => {
+    set({ isSigningUp: true });
+    try {
+      const res = await axiosInstance.post("/auth/signup", data);
+      set({ authUser: res.data });
+      toast.success("Başarıyla hesap oluşturuldu.");
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Hata!");
+    } finally {
+      set({ isSigningUp: false });
+    }
+  },
 
-            toast.error(error.response.data.message);
+  login: async (data) => {
+    set({ isLoggingIn: true });
+    try {
+      const res = await axiosInstance.post("/auth/login", data);
+      set({ authUser: res.data });
+      toast.success("Başarıyla giriş yapıldı.");
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Hata!");
+    } finally {
+      set({ isLoggingIn: false });
+    }
+  },
 
-        } finally{
-        set({isSigningUp:false})
-        }
-    },
+  logout: async () => {
+    try {
+      await axiosInstance.post("/auth/logout");
+      set({ authUser: null });
+      toast.success("Çıkış yapıldı.");
+    } catch (error) {
+      toast.error("Hata! Çıkış yapılamadı.");
+      console.log("Logout error:", error);
+    }
+  },
 
-        logout: async() => {
-            try {
-                await axiosInstance.post("/auth/logout");
-                set({authUser: null});
-                toast.success("Çıkış yapıldı.");
-            } catch (error) {
-                toast.error("Hata! Çıkış yapılamadı.");
-                console.log("Logout error:", error);
-            }
-        }
+  updateProfile: async(data) => {
+    try {
+        const res = await axiosInstance.put("/auth/update-profile",data);
+        set({authUser: res.data})
+        toast.success("Profiliniz yenilendi.");
+    } catch (error:any) {
+        console.log("error: ", error);
+        toast.error(error.response.data.message);
+    }
+  }
 
 }));
