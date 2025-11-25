@@ -53,7 +53,7 @@ function LoginPage() {
                       <LockIcon className="auth-input-icon" />
 
                       <input
-                        type="şifre"
+                        type="password"
                         value={formData.password}
                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                         className="input"
