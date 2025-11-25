@@ -1,10 +1,14 @@
+// useAuthStore.ts
 import { create } from "zustand";
 import { axiosInstance } from "../lib/axios";
 import toast from "react-hot-toast";
 import type { AuthUser } from "../types/auth";
-import { io } from "socket.io-client";
+import { io, Socket } from "socket.io-client";
 
-const BASE_URL = import.meta.env.MODE === "development" ? "http://localhost:3000" : "/";
+const BASE_URL =
+  import.meta.env.MODE === "development"
+    ? "http://localhost:3000"
+    : "/";
 
 interface AuthState {
   authUser: AuthUser | null;
@@ -12,33 +16,37 @@ interface AuthState {
   isSigningUp: boolean;
   isLoggingIn: boolean;
 
+  socket: Socket | null;
+  onlineUsers: any[];
+
   checkAuth: () => Promise<void>;
   signup: (data: any) => Promise<void>;
   login: (data: any) => Promise<void>;
   logout: () => Promise<void>;
-  updateProfile: (data: Partial<AuthUser>) => void;  
-  connectSocket: any;
-  disconnectSocket: any;
-  socket: any;
-  onlineUsers:any;
+  updateProfile: (data: Partial<AuthUser>) => void;
+
+  connectSocket: () => void;
+  disconnectSocket: () => void;
 }
 
-export const useAuthStore = create<AuthState>((set,get) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   authUser: null,
   isCheckingAuth: true,
   isSigningUp: false,
   isLoggingIn: false,
+
   socket: null,
   onlineUsers: [],
 
-
-
+  // ✔ Refresh sonrası otomatik socket bağlanır
   checkAuth: async () => {
     try {
       const res = await axiosInstance.get("/auth/check");
       set({ authUser: res.data });
+
+      // Kullanıcı girişliyse socket bağla
+      get().connectSocket();
     } catch (error) {
-      console.log("Error in authCheck:", error);
       set({ authUser: null });
     } finally {
       set({ isCheckingAuth: false });
@@ -51,6 +59,8 @@ export const useAuthStore = create<AuthState>((set,get) => ({
       const res = await axiosInstance.post("/auth/signup", data);
       set({ authUser: res.data });
       toast.success("Başarıyla hesap oluşturuldu.");
+
+      get().connectSocket();
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Hata!");
     } finally {
@@ -85,38 +95,40 @@ export const useAuthStore = create<AuthState>((set,get) => ({
     }
   },
 
-  updateProfile: async(data) => {
+  updateProfile: async (data) => {
     try {
-        const res = await axiosInstance.put("/auth/update-profile",data);
-        set({authUser: res.data})
-        toast.success("Profiliniz yenilendi.");
-    } catch (error:any) {
-        console.log("error: ", error);
-        toast.error(error.response.data.message);
+      const res = await axiosInstance.put("/auth/update-profile", data);
+      set({ authUser: res.data });
+      toast.success("Profiliniz yenilendi.");
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message);
     }
   },
 
+  // ✔ Socket her durumda güvenli şekilde bağlanır
   connectSocket: () => {
-    const {authUser} = get();
-    if(!authUser || get().socket?.connected) return
+    const { authUser, socket } = get();
+    if (!authUser) return;
 
-    const socket = io(BASE_URL, 
-      {
-        withCredentials:true
-      })
+    // Zaten bağlıysa tekrar bağlama
+    if (socket) return;
 
-      socket.connect();
+    const newSocket = io(BASE_URL, {
+      withCredentials: true,
+    });
 
-      set({socket})
+    set({ socket: newSocket });
 
-      socket.on("getOnlineUsers", (userIds) =>{
-        set({onlineUsers: userIds})
-      });
+    newSocket.on("getOnlineUsers", (userIds) => {
+      set({ onlineUsers: userIds });
+    });
   },
 
   disconnectSocket: () => {
-    if(get().socket?.connected) get().socket.disconnect();
-    
+    const { socket } = get();
+    if (socket) {
+      socket.disconnect();
+      set({ socket: null });
+    }
   },
-
 }));

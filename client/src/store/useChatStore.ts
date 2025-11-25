@@ -1,10 +1,9 @@
+// useChatStore.ts
 import { create } from "zustand";
 import { axiosInstance } from "../lib/axios";
 import toast from "react-hot-toast";
 import { useAuthStore } from "./useAuthStore";
 
-
-// sadece gerekli tipler
 interface ChatStore {
   allContacts: any[];
   chats: any[];
@@ -13,6 +12,7 @@ interface ChatStore {
   selectedUser: any | null;
   isUsersLoading: boolean;
   isMessagesLoading: boolean;
+
   isSoundEnabled: boolean;
 
   toggleSound: () => void;
@@ -21,11 +21,11 @@ interface ChatStore {
 
   getAllContact: () => Promise<void>;
   getMyChartPartners: () => Promise<void>;
-  getMessagesByUserId: (userId:any) => Promise<void>;
-  sendMessage: (messageData:any) => Promise<void>;
-  subscribeToMessages:any;
-  unsubscribeFromMessages:any;
+  getMessagesByUserId: (userId: any) => Promise<void>;
+  sendMessage: (messageData: any) => Promise<void>;
 
+  subscribeToMessages: () => void;
+  unsubscribeFromMessages: () => void;
 }
 
 export const useChatStore = create<ChatStore>((set, get) => ({
@@ -37,21 +37,16 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   isUsersLoading: false,
   isMessagesLoading: false,
 
-  // ✔ TS doğru okur
   isSoundEnabled: localStorage.getItem("isSoundEnabled") === "true",
 
   toggleSound: () => {
     const newValue = !get().isSoundEnabled;
-
-    // ✔ string olarak kaydet
     localStorage.setItem("isSoundEnabled", String(newValue));
-
-    // ✔ set tip hatası yaşamaz
     set({ isSoundEnabled: newValue });
   },
 
   setActiveTab: (tab) => set({ activeTab: tab }),
-  setSelectedUser: (selectedUser) => set({ selectedUser }),
+  setSelectedUser: (user) => set({ selectedUser: user }),
 
   getAllContact: async () => {
     set({ isUsersLoading: true });
@@ -66,82 +61,91 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   },
 
   getMyChartPartners: async () => {
-    set({isUsersLoading: true});
-
+    set({ isUsersLoading: true });
     try {
-        const res = await axiosInstance.get("/messages/chats");
-        set({ chats: res.data});
-    } catch (error:any) {
-        toast.error(error?.response?.data?.message);
-    }finally{
-        set({isUsersLoading:false})
+      const res = await axiosInstance.get("/messages/chats");
+      set({ chats: res.data });
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message);
+    } finally {
+      set({ isUsersLoading: false });
     }
   },
 
-  getMessagesByUserId: async (userId:any) =>{
-        set({isMessagesLoading: true});
-
-        try {
-          const res = await axiosInstance.get(`/messages/${userId}`);
-          set({messages: res.data})
-        } catch (error:any) {
-          toast.error(error?.response?.data?.message || "Bir şeyler ters gitti")
-        } finally{
-            set({ isMessagesLoading:false})
-        }
+  getMessagesByUserId: async (userId) => {
+    set({ isMessagesLoading: true });
+    try {
+      const res = await axiosInstance.get(`/messages/${userId}`);
+      set({ messages: res.data });
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Bir şeyler ters gitti");
+    } finally {
+      set({ isMessagesLoading: false });
+    }
   },
 
-  sendMessage : async(messageData:any) => {
-    const {selectedUser, messages } = get()
-    const {authUser} = useAuthStore.getState()
+  sendMessage: async (messageData) => {
+    const { selectedUser, messages } = get();
+    const { authUser } = useAuthStore.getState();
 
-    const tempId = `temp-${Date.now()}`
+    const tempId = `temp-${Date.now()}`;
 
     const optimisticMessage = {
-      _id:tempId,
+      _id: tempId,
       senderId: authUser?._id,
       receiverId: selectedUser._id,
       text: messageData.text,
-      imagae: messageData.imagae,
+      image: messageData.image,
       createdAt: new Date().toISOString(),
     };
 
-    set({messages: [...messages, optimisticMessage]});
+    set({ messages: [...messages, optimisticMessage] });
 
     try {
-      const res = await axiosInstance.post(`/messages/send/${selectedUser._id}`, messageData)
-      set({messages: messages.concat(res.data)})
-    } catch (error:any) {
-      set({messages: messages});
+      const res = await axiosInstance.post(
+        `/messages/send/${selectedUser._id}`,
+        messageData
+      );
+
+      set({
+        messages: [...messages, res.data],
+      });
+    } catch (error: any) {
+      set({ messages: messages });
       toast.error(error?.response?.data?.message || "Bir şeyler ters gitti.");
     }
   },
 
-  subscribeToMessages : () => {
-    const {selectedUser, isSoundEnabled} = get();
-    if(!selectedUser) return;
+  subscribeToMessages: () => {
+    const { selectedUser, isSoundEnabled } = get();
+    if (!selectedUser) return;
 
     const socket = useAuthStore.getState().socket;
 
-    socket.on("newMessage", (newMessage:any) => {
+    // ❗ Null crash engellendi
+    if (!socket) {
+      console.warn("Socket hazır değil, subscribe çalışmadı");
+      return;
+    }
 
-      const isMessageSentFromSelectedUser = newMessage.senderId === selectedUser._id;
-      if(!isMessageSentFromSelectedUser) return;
+    socket.on("newMessage", (newMessage: any) => {
+      const isFromSelectedUser =
+        newMessage.senderId === selectedUser._id;
+      if (!isFromSelectedUser) return;
 
-      const currentMessages = get().messages
-      set({messages:[...currentMessages, newMessage]})
+      const current = get().messages;
+      set({ messages: [...current, newMessage] });
 
-      if(isSoundEnabled){
-        const notificationSound = new Audio("/sounds/notification.mp3");
-        notificationSound.currentTime = 0;
-        notificationSound.play().catch((e:any)=> console.log("Seste hata",e))
+      if (isSoundEnabled) {
+        const sound = new Audio("/sounds/notification.mp3");
+        sound.play().catch(() => {});
       }
-    })
+    });
   },
 
-  unsubscribeFromMessages: () =>{
+  unsubscribeFromMessages: () => {
     const socket = useAuthStore.getState().socket;
+    if (!socket) return;
     socket.off("newMessage");
-  }
-
+  },
 }));
