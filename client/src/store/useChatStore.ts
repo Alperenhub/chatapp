@@ -3,6 +3,7 @@ import { axiosInstance } from "../lib/axios";
 import toast from "react-hot-toast";
 import { useAuthStore } from "./useAuthStore";
 
+
 // sadece gerekli tipler
 interface ChatStore {
   allContacts: any[];
@@ -22,6 +23,8 @@ interface ChatStore {
   getMyChartPartners: () => Promise<void>;
   getMessagesByUserId: (userId:any) => Promise<void>;
   sendMessage: (messageData:any) => Promise<void>;
+  subscribeToMessages:any;
+  unsubscribeFromMessages:any;
 
 }
 
@@ -112,6 +115,33 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       set({messages: messages});
       toast.error(error?.response?.data?.message || "Bir şeyler ters gitti.");
     }
+  },
+
+  subscribeToMessages : () => {
+    const {selectedUser, isSoundEnabled} = get();
+    if(!selectedUser) return;
+
+    const socket = useAuthStore.getState().socket;
+
+    socket.on("newMessage", (newMessage:any) => {
+
+      const isMessageSentFromSelectedUser = newMessage.senderId === selectedUser._id;
+      if(!isMessageSentFromSelectedUser) return;
+
+      const currentMessages = get().messages
+      set({messages:[...currentMessages, newMessage]})
+
+      if(isSoundEnabled){
+        const notificationSound = new Audio("/sounds/notification.mp3");
+        notificationSound.currentTime = 0;
+        notificationSound.play().catch((e:any)=> console.log("Seste hata",e))
+      }
+    })
+  },
+
+  unsubscribeFromMessages: () =>{
+    const socket = useAuthStore.getState().socket;
+    socket.off("newMessage");
   }
 
 }));
